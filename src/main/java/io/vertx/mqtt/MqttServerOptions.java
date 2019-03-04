@@ -37,9 +37,14 @@ public class MqttServerOptions extends NetServerOptions {
 
   public static final int DEFAULT_PORT = 1883; // Default port is 1883 for MQTT
   public static final int DEFAULT_TLS_PORT = 8883; // Default TLS port is 8883 for MQTT
+  public static final String MQTT_SUBPROTOCOL_CSV_LIST = "mqtt, mqttv3.1, mqttv3.1.1"; // Sub Protocols
 
+  public static final int DEFAULT_FIXED_HEADER_MAX_SIZE = 5;
   public static final int DEFAULT_MAX_MESSAGE_SIZE = -1;
   public static final int DEFAULT_TIMEOUT_ON_CONNECT = 90;
+
+  public static final boolean DEFAULT_OVER_WEBSOCKET = false;
+  public static final String DEFAULT_WEBSOCKET_PATH = "/mqtt";
 
   // max message size (variable header + payload) in bytes
   private int maxMessageSize;
@@ -47,6 +52,10 @@ public class MqttServerOptions extends NetServerOptions {
   private boolean isAutoClientId;
   // timeout on CONNECT packet
   private int timeoutOnConnect;
+  // over websocket
+  private boolean overWebsocket;
+  // websocket path
+  private String websocketPath;
 
   /**
    * Default constructor
@@ -58,6 +67,8 @@ public class MqttServerOptions extends NetServerOptions {
     this.maxMessageSize = DEFAULT_MAX_MESSAGE_SIZE;
     this.isAutoClientId = true;
     this.timeoutOnConnect = DEFAULT_TIMEOUT_ON_CONNECT;
+    this.overWebsocket = DEFAULT_OVER_WEBSOCKET;
+    this.websocketPath = DEFAULT_WEBSOCKET_PATH;
   }
 
   /**
@@ -72,6 +83,8 @@ public class MqttServerOptions extends NetServerOptions {
     this.maxMessageSize =  json.getInteger("maxMessageSize", DEFAULT_MAX_MESSAGE_SIZE);
     this.isAutoClientId = json.getBoolean("isAutoClientId", true);
     this.timeoutOnConnect = json.getInteger("timeoutOnConnect", DEFAULT_TIMEOUT_ON_CONNECT);
+    this.overWebsocket = json.getBoolean("overWebsocket", DEFAULT_OVER_WEBSOCKET);
+    this.websocketPath = json.getString("websocketPath", DEFAULT_WEBSOCKET_PATH);
 
     if ((this.maxMessageSize > 0) && (this.getReceiveBufferSize() > 0)) {
       Arguments.require(this.getReceiveBufferSize() >= this.maxMessageSize,
@@ -257,5 +270,41 @@ public class MqttServerOptions extends NetServerOptions {
    */
   public int timeoutOnConnect() {
     return this.timeoutOnConnect;
+  }
+
+  /**
+   * Set MQTT over WebSocket
+   *
+   * @param overWebsocket MQTT over WebSocket option
+   * @return  MQTT server options instance
+   */
+  public MqttServerOptions setOverWebsocket(boolean overWebsocket) {
+      this.overWebsocket = overWebsocket;
+      return this;
+  }
+
+  /**
+   * @return  MQTT over WebSocket option
+   */
+  public boolean isOverWebsocket() {
+      return this.overWebsocket;
+  }
+
+  /**
+   * Set WebSocket path
+   *
+   * @param websocketPath WebSocket path option
+   * @return  MQTT server options instance
+   */
+  public MqttServerOptions setWebsocketPath(String websocketPath) {
+      this.websocketPath = websocketPath;
+      return this;
+  }
+
+  /**
+   * @return  WebSocket path option
+   */
+  public String getWebsocketPath() {
+      return this.websocketPath;
   }
 }

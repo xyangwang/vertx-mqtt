@@ -16,9 +16,18 @@
 
 package io.vertx.mqtt.impl;
 
+import java.util.List;
+
+import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelDuplexHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelPipeline;
+import io.netty.handler.codec.MessageToMessageDecoder;
+import io.netty.handler.codec.MessageToMessageEncoder;
+import io.netty.handler.codec.http.HttpObjectAggregator;
+import io.netty.handler.codec.http.HttpServerCodec;
+import io.netty.handler.codec.http.websocketx.BinaryWebSocketFrame;
+import io.netty.handler.codec.http.websocketx.WebSocketServerProtocolHandler;
 import io.netty.handler.codec.mqtt.MqttDecoder;
 import io.netty.handler.codec.mqtt.MqttEncoder;
 import io.netty.handler.timeout.IdleState;
@@ -129,7 +138,42 @@ public class MqttServerImpl implements MqttServer {
     server.close(completionHandler);
   }
 
+  static class ByteBufToWebSocketFrameEncoder extends MessageToMessageEncoder<ByteBuf> {
+    @Override
+    protected void encode(ChannelHandlerContext chc, ByteBuf bb, List<Object> out) throws Exception {
+      BinaryWebSocketFrame result = new BinaryWebSocketFrame();
+      result.content().writeBytes(bb);
+      out.add(result);
+    }
+  }
+
+  static class WebSocketFrameToByteBufDecoder extends MessageToMessageDecoder<BinaryWebSocketFrame> {
+    @Override
+    protected void decode(ChannelHandlerContext chc, BinaryWebSocketFrame frame, List<Object> out) throws Exception {
+      ByteBuf bb = frame.content();
+      bb.retain();
+      out.add(bb);
+    }
+  }
+
+  private int getAggregatorMaxContentLength() {
+    if (this.options.getMaxMessageSize() == MqttServerOptions.DEFAULT_MAX_MESSAGE_SIZE) {
+      return Integer.MAX_VALUE;
+    } else {
+      return this.options.getMaxMessageSize() + MqttServerOptions.DEFAULT_FIXED_HEADER_MAX_SIZE;
+    }
+  }
+
   private void initChannel(ChannelPipeline pipeline) {
+    if (this.options.isOverWebsocket()) {
+      pipeline.addBefore("handler", "httpServerCodec", new HttpServerCodec());
+      pipeline.addBefore("handler", "aggregator",
+        new HttpObjectAggregator(getAggregatorMaxContentLength()));
+      pipeline.addBefore("handler", "websocket",
+        new WebSocketServerProtocolHandler(this.options.getWebsocketPath(), MqttServerOptions.MQTT_SUBPROTOCOL_CSV_LIST));
+      pipeline.addBefore("handler", "bytebuf2wsEncoder", new ByteBufToWebSocketFrameEncoder());
+      pipeline.addBefore("handler", "ws2bytebufDecoder", new WebSocketFrameToByteBufDecoder());
+    }
 
     pipeline.addBefore("handler", "mqttEncoder", MqttEncoder.INSTANCE);
     if (this.options.getMaxMessageSize() > 0) {
