@@ -442,7 +442,7 @@ public class MqttEndpointImpl implements MqttEndpoint {
     MqttFixedHeader fixedHeader =
       new MqttFixedHeader(MqttMessageType.PUBLISH, isDup, qosLevel, isRetain, 0);
     MqttPublishVariableHeader variableHeader =
-      new MqttPublishVariableHeader(topic, this.nextMessageId());
+      new MqttPublishVariableHeader(topic, qosLevel == MqttQoS.AT_MOST_ONCE ? 0 : this.nextMessageId());
 
     ByteBuf buf = Unpooled.copiedBuffer(payload.getBytes());
 
